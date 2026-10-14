@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة إدارة وتحليلات استطلاع DawaNetwork</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+  <!-- PIN Protection Gate -->
+  <div id="login-modal" class="login-backdrop" style="display:none;">
+    <div class="login-card">
+      <img src="logo.png" alt="DawaNetwork Logo" class="login-logo" style="width:52px;height:52px;border-radius:12px;margin:0 auto 12px;display:block;box-shadow:var(--shadow-sm);" />
+      <h2 class="login-title">لوحة تحكم DawaNetwork</h2>
+      <p class="login-subtitle">يرجى إدخال رمز الدخول (الافتراضي: 1234)</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <input type="password" id="pin-input" class="form-input" style="text-align:center;font-size:1.2rem;letter-spacing:4px;" placeholder="••••" autofocus />
+        <div id="pin-error" style="color:var(--danger);font-size:0.82rem;display:none;"></div>
+        <button type="button" id="pin-submit-btn" class="btn btn-primary" style="padding:10px;">دخول للوحة الإدارة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="admin-header">
+    <div class="header-inner">
+      <div class="brand-section">
+        <a href="index.html" class="brand">
+          <img src="logo.png" alt="DawaNetwork Logo" class="brand-logo" />
+          <span class="wordmark">DawaNetwork</span>
+        </a>
+        <span class="badge-admin">لوحة الإدارة</span>
+        <div class="status-indicator">
+          <span id="status-dot" class="status-dot"></span>
+          <span id="status-text">جارٍ التحميل...</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" id="btn-refresh" class="btn btn-outline btn-sm" title="تحديث الردود">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          <span>تحديث البيانات</span>
+        </button>
+
+        <button type="button" id="btn-export-csv" class="btn btn-outline btn-sm" title="تصدير كملف إكسل">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          <span>تصدير Excel (CSV)</span>
+        </button>
+
+        <button type="button" id="btn-export-json" class="btn btn-ghost btn-sm" title="تصدير JSON خام">
+          <span>JSON</span>
+        </button>
+
+        <button type="button" id="btn-print" class="btn btn-ghost btn-sm" title="طباعة أو حفظ PDF">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          <span>طباعة</span>
+        </button>
+
+        <button type="button" id="btn-open-key-modal" class="btn btn-ghost btn-sm" title="إعدادات المفاتيح وRLS">
+          ⚙️ إعدادات الربط
+        </button>
+
+        <a href="index.html" class="btn btn-primary btn-sm">
+          <span>عرض الاستبيان</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="admin-main">
+
+    <!-- Smart RLS Diagnostic Banner -->
+    <div id="rls-alert" class="alert alert-warning" style="display:none;">
+      <div class="alert-body">
+        <div class="alert-title">💡 تنبيه بخصوص صلاحيات قراءة البيانات (Row Level Security):</div>
+        <p class="alert-text">
+          إذا كانت لديك ردود مرسلة ولا تظهر في هذه اللوحة، فالسبب هو أن سياسة الأمان (RLS) في Supabase مغلقة للقراءة الافتراضية لحماية البيانات.
+          يمكنك السماح للوحة الإدارة بقراءة الردود عبر تشغيل هذا السطر في <strong>SQL Editor</strong> في لوحة تحكم Supabase:
+        </p>
+        <code class="code-snippet">CREATE POLICY "allow_admin_read" ON public.survey_responses FOR SELECT TO anon USING (true);</code>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" id="copy-sql-btn" class="btn btn-teal btn-sm">نسخ أمر SQL</button>
+          <button type="button" onclick="document.getElementById('btn-open-key-modal').click()" class="btn btn-outline btn-sm">أو إدخال Service Role Key</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter & Source Toolbar -->
+    <div class="toolbar-card">
+      <div class="toolbar-filters">
+        <div class="filter-group">
+          <input type="text" id="search-input" class="form-input search-input" placeholder="🔍 بحث في الإجابات..." />
+        </div>
+
+        <div class="filter-group">
+          <label for="role-filter">الوظيفة:</label>
+          <select id="role-filter" class="form-select">
+            <option value="">جميع الوظائف</option>
+            <option value="صاحب صيدلية">صاحب صيدلية</option>
+            <option value="مدير صيدلية">مدير صيدلية</option>
+            <option value="مسؤول عن إدارة المخزون">مسؤول مخزون</option>
+            <option value="صيدلي يعمل داخل صيدلية">صيدلي بالصيدلية</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="exp-filter">الخبرة:</label>
+          <select id="exp-filter" class="form-select">
+            <option value="">جميع سنوات الخبرة</option>
+            <option value="أقل من سنة">أقل من سنة</option>
+            <option value="من سنة إلى 3 سنوات">1 - 3 سنوات</option>
+            <option value="من 4 إلى 7 سنوات">4 - 7 سنوات</option>
+            <option value="أكثر من 7 سنوات">أكثر من 7 سنوات</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="source-toggle">
+        <button type="button" id="src-supabase" class="source-btn active" title="جلب مباشر من Supabase">قاعدة البيانات</button>
+        <button type="button" id="src-local" class="source-btn" title="المحفوظات الاحتياطية في هذا المتصفح">المحلي</button>
+      </div>
+    </div>
+
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card emerald">
+        <div class="kpi-title">إجمالي الردود المستلمة</div>
+        <div class="kpi-value"><span id="kpi-total">0</span> <span class="kpi-unit">مشارك</span></div>
+        <div class="kpi-subtext">صيادلة أكملوا الاستطلاع</div>
+      </div>
+
+      <div class="kpi-card teal">
+        <div class="kpi-title">الرغبة في استخدام DawaNetwork</div>
+        <div class="kpi-value"><span id="kpi-interest">0%</span></div>
+        <div class="kpi-subtext">أجابوا بـ "بالتأكيد" أو "غالبًا"</div>
+      </div>
+
+      <div class="kpi-card info">
+        <div class="kpi-title">الاستعداد للاشتراك المدفوع</div>
+        <div class="kpi-value"><span id="kpi-paying">0%</span></div>
+        <div class="kpi-subtext">مستعدون لدفع مقابل شهري للخدمة</div>
+      </div>
+
+      <div class="kpi-card warning">
+        <div class="kpi-title">متوسط قيمة الاشتراك المقترح</div>
+        <div class="kpi-value"><span id="kpi-sub-avg">—</span></div>
+        <div class="kpi-subtext">بناءً على اقتراحات المشاركين</div>
+      </div>
+
+      <div class="kpi-card emerald">
+        <div class="kpi-title">المستعدون للتجربة المجانية</div>
+        <div class="kpi-value"><span id="kpi-trial">0%</span></div>
+        <div class="kpi-subtext">أبدوا استعداداً للتجربة لشهرين</div>
+      </div>
+    </div>
+
+    <!-- View Navigation Tabs -->
+    <div class="tabs-nav">
+      <button type="button" class="tab-btn active" data-tab="analytics">
+        <span>📊 التحليلات والرسوم البيانية</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="table">
+        <span>📋 سجل الردود الفردية</span>
+        <span id="tab-table-count" class="tab-count">0</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="feedback">
+        <span>💬 المقترحات والتعليقات (Q23)</span>
+      </button>
+    </div>
+
+    <!-- Tab 1: Detailed Question Analytics -->
+    <div id="analytics-view"></div>
+
+    <!-- Tab 2: Individual Responses Table -->
+    <div id="table-view" style="display:none;">
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width:60px;">#</th>
+                <th>تاريخ التقديم</th>
+                <th>طبيعة العمل (Q1)</th>
+                <th>الصيدلية والفرع</th>
+                <th>سنوات الخبرة (Q2)</th>
+                <th>الاشتراك (Q16)</th>
+                <th style="width:130px;">الإجراء</th>
+              </tr>
+            </thead>
+            <tbody id="responses-table-body">
+              <tr>
+                <td colspan="7" style="text-align:center;padding:32px;color:var(--teal-light);">
+                  جارٍ تحميل الردود...
+                </td>
+              </tr>
+            </tbody>
+
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Suggestions & Feedback Cards -->
+    <div id="feedback-view" style="display:none;">
+      <div id="feedback-grid" class="feedback-grid"></div>
+    </div>
+
+  </main>
+
+  <!-- Inspect Single Response Modal -->
+  <div id="inspect-modal" class="modal-backdrop">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">تفاصيل الرد كاملًا — مشارك #<span id="modal-response-num"></span></h3>
+        <button type="button" id="inspect-modal-close" class="modal-close">&times;</button>
+      </div>
+      <div id="inspect-modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Key Configuration / RLS Modal -->
+  <div id="key-modal" class="modal-backdrop">
+    <div class="modal-container" style="max-width:540px;">
+      <div class="modal-header">
+        <h3 class="modal-title">إعدادات الاتصال والأمان</h3>
+        <button type="button" id="key-modal-close" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.88rem;color:var(--teal-soft);line-height:1.6;margin-top:0;">
+          تستخدم اللوحة حاليًا مفتاح Supabase المعرّف في <code>config.js</code>. إذا كنت مفعلًا لـ RLS دون سياسة SELECT عامة، يمكنك إدخال <strong>service_role key</strong> مؤقتًا هنا للوصول الكامل (يُحفظ في جلسة متصفحك الحالية فقط ولن يُرفع للإنترنت):
+        </p>
+
+        <div style="margin-bottom:16px;">
+          <label style="font-size:0.82rem;font-weight:700;display:block;margin-bottom:6px;">مفتاح مخصص (Service Role أو Anon):</label>
+          <input type="password" id="key-input" class="form-input" style="width:100%;font-family:monospace;font-size:0.8rem;" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI..." />
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button type="button" id="clear-key-btn" class="btn btn-outline btn-sm">استعادة الافتراضي</button>
+          <button type="button" id="save-key-btn" class="btn btn-primary btn-sm">حفظ وتطبيق</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="questions.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
