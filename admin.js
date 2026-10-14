@@ -82,12 +82,12 @@
     pinSubmitBtn.addEventListener("click", () => {
       const val = pinInput.value.trim();
       // Default PIN is 1234 or any 4+ character password
-      if (val === "1234" || val === "admin" || val.length >= 4) {
+      if (val === "112007" || val === "admin" || val.length >= 4) {
         sessionStorage.setItem(PIN_KEY, "true");
         loginModal.style.display = "none";
         initDashboard();
       } else {
-        pinError.textContent = "رمز PIN غير صحيح (الافتراضي: 1234)";
+        pinError.textContent = "رمز PIN غير صحيح ";
         pinError.style.display = "block";
       }
     });
